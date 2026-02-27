@@ -3,6 +3,7 @@ from bpy.props import (
     BoolProperty,
     EnumProperty,
     FloatProperty,
+    FloatVectorProperty,
     IntProperty,
     PointerProperty,
 )
@@ -25,10 +26,15 @@ def _poll_target(_self, obj):
 
 
 class PRIG_Settings(bpy.types.PropertyGroup):
-    reference_surface: PointerProperty(name="Reference Surface", type=bpy.types.Object, poll=_poll_surface)
+    reference_surface: PointerProperty(
+        name="Reference Surface",
+        type=bpy.types.Object,
+        poll=_poll_surface,
+    )
     control_curve_a: PointerProperty(name="Curve A", type=bpy.types.Object, poll=_poll_curve)
     control_curve_b: PointerProperty(name="Curve B", type=bpy.types.Object, poll=_poll_curve)
     control_curve_c: PointerProperty(name="Curve C", type=bpy.types.Object, poll=_poll_curve)
+
     target_a: PointerProperty(name="Target A", type=bpy.types.Object, poll=_poll_target)
     target_b: PointerProperty(name="Target B", type=bpy.types.Object, poll=_poll_target)
     target_c: PointerProperty(name="Target C", type=bpy.types.Object, poll=_poll_target)
@@ -45,14 +51,23 @@ class PRIG_Settings(bpy.types.PropertyGroup):
         ],
         default='SURFACE_NORMAL',
     )
-    custom_vector: bpy.props.FloatVectorProperty(name="Custom Vector", default=(0.0, 0.0, 1.0), subtype='XYZ')
+    custom_vector: FloatVectorProperty(
+        name="Custom Vector",
+        default=(0.0, 0.0, 1.0),
+        subtype='XYZ',
+    )
 
     influence_radius: FloatProperty(name="Influence Radius", default=1.0, min=0.001)
     falloff_type: EnumProperty(
         name="Falloff",
-        items=[('SMOOTH', "Smooth", ""), ('SHARP', "Sharp", ""), ('LINEAR', "Linear", "")],
+        items=[
+            ('SMOOTH', "Smooth", ""),
+            ('SHARP', "Sharp", ""),
+            ('LINEAR', "Linear", ""),
+        ],
         default='SMOOTH',
     )
+
     pin_borders: BoolProperty(name="Pin Borders", default=False)
     live_update: BoolProperty(name="Live Update", default=True)
     update_throttle_ms: IntProperty(name="Update Throttle (ms)", default=66, min=16, max=1000)
@@ -71,6 +86,7 @@ def register():
 
 
 def unregister():
-    del bpy.types.Scene.prig_settings
+    if hasattr(bpy.types.Scene, "prig_settings"):
+        del bpy.types.Scene.prig_settings
     for cls in reversed(CLASSES):
         bpy.utils.unregister_class(cls)

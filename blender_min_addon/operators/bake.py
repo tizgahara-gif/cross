@@ -7,9 +7,19 @@ def _active_rig_root(context):
     active = context.active_object
     if not active or "prig_rig_id" not in active:
         return None
+
     rig_id = active["prig_rig_id"]
-    roots = [obj for obj in bpy.data.objects if obj.type == 'EMPTY' and obj.get("prig_rig_id") == rig_id and obj.get("prig_grid_obj")]
+    roots = [
+        obj
+        for obj in bpy.data.objects
+        if obj.type == 'EMPTY' and obj.get("prig_rig_id") == rig_id and obj.get("prig_grid_obj")
+    ]
     return roots[0] if roots else None
+
+
+def _link_object_to_context_collection(context, obj):
+    collection = context.collection or context.scene.collection
+    collection.objects.link(obj)
 
 
 def _bake_object(context, obj, suffix):
@@ -18,7 +28,7 @@ def _bake_object(context, obj, suffix):
     baked_mesh = bpy.data.meshes.new_from_object(eval_obj, depsgraph=depsgraph)
     baked_obj = bpy.data.objects.new(f"{obj.name}_{suffix}", baked_mesh)
     baked_obj.matrix_world = obj.matrix_world.copy()
-    context.collection.objects.link(baked_obj)
+    _link_object_to_context_collection(context, baked_obj)
     return baked_obj
 
 
@@ -64,6 +74,7 @@ class PRIG_OT_bake_target(bpy.types.Operator):
         for target in targets:
             baked = _bake_object(context, target, "BAKED")
             baked_names.append(baked.name)
+
         self.report({'INFO'}, "Target baked: " + ", ".join(baked_names))
         return {'FINISHED'}
 

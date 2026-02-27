@@ -3,6 +3,8 @@ import time
 import uuid
 
 import bpy
+from bpy.app.handlers import persistent
+from bpy.props import BoolProperty
 
 from ..nodes.node_groups import ensure_grid_node_group
 
@@ -12,7 +14,11 @@ def _short_id(rig_id: str) -> str:
 
 
 def _collect_curves(settings):
-    return [obj for obj in (settings.control_curve_a, settings.control_curve_b, settings.control_curve_c) if obj]
+    return [
+        obj
+        for obj in (settings.control_curve_a, settings.control_curve_b, settings.control_curve_c)
+        if obj
+    ]
 
 
 def _collect_targets(settings):
@@ -22,12 +28,15 @@ def _collect_targets(settings):
 def _validate_inputs(settings):
     if not settings.reference_surface or settings.reference_surface.type != 'MESH':
         return False, "Reference Surface は Mesh を指定してください。"
+
     curves = _collect_curves(settings)
     if not curves or any(c.type != 'CURVE' for c in curves):
         return False, "Control Curves は1つ以上の Curve を指定してください。"
+
     targets = _collect_targets(settings)
     if not targets or any(t.type != 'MESH' for t in targets):
         return False, "Target は1つ以上の Mesh を指定してください。"
+
     return True, ""
 
 
@@ -36,16 +45,41 @@ def _create_grid_object(surface_obj, rig_id, u_res, v_res):
     mesh = bpy.data.meshes.new(f"PRIG_{sid}_GRID_MESH")
     grid = bpy.data.objects.new(f"PRIG_{sid}_GRID", mesh)
 
-    # Minimal rectangular grid based on surface bounds size.
     import bmesh
+
     bm = bmesh.new()
-    bmesh.ops.create_grid(bm, x_segments=max(1, u_res - 1), y_segments=max(1, v_res - 1), size=0.5)
+    bmesh.ops.create_grid(
+        bm,
+        x_segments=max(1, u_res - 1),
+        y_segments=max(1, v_res - 1),
+        size=0.5,
+    )
+
+    # simple regular UV for downstream bake/texturing usage.
+    uv_layer = bm.loops.layers.uv.new("UVMap")
+    min_u = float('inf')
+    max_u = float('-inf')
+    min_v = float('inf')
+    max_v = float('-inf')
+    for vert in bm.verts:
+        min_u = min(min_u, vert.co.x)
+        max_u = max(max_u, vert.co.x)
+        min_v = min(min_v, vert.co.y)
+        max_v = max(max_v, vert.co.y)
+    du = max(max_u - min_u, 1e-8)
+    dv = max(max_v - min_v, 1e-8)
+    for face in bm.faces:
+        for loop in face.loops:
+            uv = loop[uv_layer].uv
+            uv.x = (loop.vert.co.x - min_u) / du
+            uv.y = (loop.vert.co.y - min_v) / dv
+
     bm.to_mesh(mesh)
     bm.free()
 
     dims = surface_obj.dimensions
     grid.scale = (max(0.001, dims.x), max(0.001, dims.y), 1.0)
-    grid.matrix_world.translation = surface_obj.matrix_world.translation
+    grid.matrix_world = surface_obj.matrix_world.copy()
     return grid
 
 
@@ -80,8 +114,9 @@ def _bind_surface_deform(context, target, grid_obj):
         view_layer.objects.active = target
 
         result = bpy.ops.object.surfacedeform_bind(modifier=mod.name)
-        return result == {'FINISHED'}, "" if result == {'FINISHED'} else "Surface Deform bind failed"
-    except Exception as exc:  # Blender ops can throw runtime/context errors.
+        ok = result == {'FINISHED'}
+        return ok, "" if ok else "Surface Deform bind failed"
+    except Exception as exc:
         return False, str(exc)
     finally:
         target.select_set(False)
@@ -117,7 +152,12 @@ class PRIG_OT_create_rig(bpy.types.Operator):
         root.empty_display_type = 'CUBE'
         collection.objects.link(root)
 
-        grid = _create_grid_object(surface, rig_id, settings.grid_resolution_u, settings.grid_resolution_v)
+        grid = _create_grid_object(
+            surface,
+            rig_id,
+            settings.grid_resolution_u,
+            settings.grid_resolution_v,
+        )
         collection.objects.link(grid)
         grid.parent = root
 
@@ -173,7 +213,11 @@ class PRIG_OT_update_rig(bpy.types.Operator):
             return {'CANCELLED'}
 
         rig_id = active["prig_rig_id"]
-        roots = [obj for obj in bpy.data.objects if obj.type == 'EMPTY' and obj.get("prig_rig_id") == rig_id and obj.get("prig_grid_obj")]
+        roots = [
+            obj
+            for obj in bpy.data.objects
+            if obj.type == 'EMPTY' and obj.get("prig_rig_id") == rig_id and obj.get("prig_grid_obj")
+        ]
         if not roots:
             self.report({'ERROR'}, "Rig Rootが見つかりません。")
             return {'CANCELLED'}
@@ -204,12 +248,11 @@ class PRIG_OT_select_rig_objects(bpy.types.Operator):
         return {'FINISHED'}
 
 
-
 class PRIG_OT_duplicate_rig(bpy.types.Operator):
     bl_idname = "prig.duplicate_rig"
     bl_label = "Duplicate Rig"
 
-    share_references: bpy.props.BoolProperty(name="Share Surface/Curve/Target", default=True)
+    share_references: BoolProperty(name="Share Surface/Curve/Target", default=True)
 
     def execute(self, context):
         active = context.active_object
@@ -218,7 +261,11 @@ class PRIG_OT_duplicate_rig(bpy.types.Operator):
             return {'CANCELLED'}
 
         old_id = active["prig_rig_id"]
-        roots = [obj for obj in bpy.data.objects if obj.type == 'EMPTY' and obj.get("prig_rig_id") == old_id and obj.get("prig_grid_obj")]
+        roots = [
+            obj
+            for obj in bpy.data.objects
+            if obj.type == 'EMPTY' and obj.get("prig_rig_id") == old_id and obj.get("prig_grid_obj")
+        ]
         if not roots:
             self.report({'ERROR'}, "Rig Root が見つかりません。")
             return {'CANCELLED'}
@@ -226,34 +273,45 @@ class PRIG_OT_duplicate_rig(bpy.types.Operator):
         root = roots[0]
         settings = context.scene.prig_settings
         settings.reference_surface = bpy.data.objects.get(root.get("prig_surface_obj"))
+
         curves = json.loads(root.get("prig_curve_objs", "[]"))
         targets = json.loads(root.get("prig_target_objs", "[]"))
+
         slots_c = ["control_curve_a", "control_curve_b", "control_curve_c"]
         slots_t = ["target_a", "target_b", "target_c"]
+
         for i, slot in enumerate(slots_c):
             setattr(settings, slot, bpy.data.objects.get(curves[i]) if i < len(curves) else None)
         for i, slot in enumerate(slots_t):
             setattr(settings, slot, bpy.data.objects.get(targets[i]) if i < len(targets) else None)
 
-        return bpy.ops.prig.create_rig()
+        bpy.ops.prig.create_rig()
+        return {'FINISHED'}
 
+
+@persistent
 def _depsgraph_update_handler(scene, depsgraph):
+    _ = depsgraph
     now_ms = int(time.time() * 1000)
     settings = scene.prig_settings if hasattr(scene, "prig_settings") else None
     if not settings or not settings.live_update:
         return
-    throttle = max(1, settings.update_throttle_ms)
 
+    throttle = max(1, settings.update_throttle_ms)
     for obj in scene.objects:
         if obj.type != 'EMPTY' or "prig_rig_id" not in obj or "prig_grid_obj" not in obj:
             continue
         last_ms = int(obj.get("prig_last_update_ms", 0))
-        if now_ms - last_ms < throttle:
-            continue
-        obj["prig_last_update_ms"] = now_ms
+        if now_ms - last_ms >= throttle:
+            obj["prig_last_update_ms"] = now_ms
 
 
-CLASSES = (PRIG_OT_create_rig, PRIG_OT_update_rig, PRIG_OT_select_rig_objects, PRIG_OT_duplicate_rig)
+CLASSES = (
+    PRIG_OT_create_rig,
+    PRIG_OT_update_rig,
+    PRIG_OT_select_rig_objects,
+    PRIG_OT_duplicate_rig,
+)
 
 
 def register():

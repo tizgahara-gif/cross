@@ -7,6 +7,7 @@ def ensure_grid_node_group(name: str):
         return ng
 
     ng = bpy.data.node_groups.new(name=name, type='GeometryNodeTree')
+
     group_in = ng.nodes.new("NodeGroupInput")
     group_in.location = (-200, 0)
     group_out = ng.nodes.new("NodeGroupOutput")
@@ -15,5 +16,5 @@ def ensure_grid_node_group(name: str):
     ng.interface.new_socket(name="Geometry", in_out='INPUT', socket_type='NodeSocketGeometry')
     ng.interface.new_socket(name="Geometry", in_out='OUTPUT', socket_type='NodeSocketGeometry')
 
-    ng.links.new(group_in.outputs[0], group_out.inputs[0])
+    ng.links.new(group_in.outputs["Geometry"], group_out.inputs["Geometry"])
     return ng
