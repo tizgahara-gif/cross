@@ -3,7 +3,7 @@ bl_info = {
     "author": "Codex",
     "version": (0, 2, 0),
     "blender": (4, 0, 0),
-    "location": "View3D > Sidebar > Minimal",
+    "location": "View3D > Sidebar > Tool",
     "description": "Create an intersection model from 2 or more selected mesh/curve objects.",
     "category": "Object",
 }
@@ -102,7 +102,7 @@ class MINIMAL_PT_panel(bpy.types.Panel):
     bl_idname = "MINIMAL_PT_panel"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category = 'Cross_obj'
+    bl_category = 'Tool'
 
     def draw(self, context):
         layout = self.layout
