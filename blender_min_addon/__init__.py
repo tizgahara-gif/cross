@@ -1,5 +1,5 @@
 bl_info = {
-    "name": "Minimal Intersection Addon",
+    "name": "Cross_obj",
     "author": "Codex",
     "version": (0, 2, 0),
     "blender": (4, 0, 0),
@@ -98,11 +98,11 @@ class MINIMAL_OT_build_intersection(bpy.types.Operator):
 
 
 class MINIMAL_PT_panel(bpy.types.Panel):
-    bl_label = "Minimal Addon"
+    bl_label = "Cross_obj"
     bl_idname = "MINIMAL_PT_panel"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category = 'Minimal'
+    bl_category = 'Cross_obj'
 
     def draw(self, context):
         layout = self.layout

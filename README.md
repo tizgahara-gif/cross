@@ -21,12 +21,12 @@
 2. Blenderを開く。
 3. `Edit > Preferences > Add-ons > Install...` を選択。
 4. 作成したZIPを選択してインストール。
-5. Add-on一覧で **Minimal Intersection Addon** を有効化。
+5. Add-on一覧で **Cross_obj** を有効化。
 
 ## 使い方
 
 1. 交差させたいオブジェクトを2つ以上選択。
-2. 3D View の右サイドバー（`N`キー）→ **Minimal** タブを開く。
+2. 3D View の右サイドバー（`N`キー）→ **Cross_obj** タブを開く。
 3. **交差モデルを作成** を押す。
 4. `Intersection_Result` が生成され、交差領域のみが残ります。
 
